@@ -14,19 +14,24 @@ import datetime
 import errno
 import argparse
 
-now = datetime.datetime.now()
 base = "https://apod.nasa.gov/apod/"
 apotd_page = 'astropix.html'
 
 parser = argparse.ArgumentParser(description='Download images from nasa APOTD')
 
 parser.add_argument(
+    '--days',
+    '-d',
+    type=int,
+    help='Number of days to download from apotd archives',
+    action='store')
+
+parser.add_argument(
     '--location',
     '-l',
-    help='Choose save location via GUI',
+    help='add flag to select save location via GUI',
     action='store_true')
 args = parser.parse_args()
-
 
 def get_folder(imgname):
     if args.location:
@@ -52,17 +57,49 @@ def gettree(url):
     tree = etree.parse(response, htmlparser)
     return tree
 
-# def download_past():
+
+def get_date(tree):
+    date = tree.xpath('/html/body/center[1]/p[2]/text()')
+    date = date[0].translate({ord(c): None for c in '\n'})
+    try:
+        date = datetime.datetime.strptime(
+            date, '%Y %B %d')
+        date = date.strftime("%Y_%m_%d")
+    except Exception as e:
+        date = datetime.datetime.strptime(
+            date, '%Y %B %d ')
+        date = date.strftime("%Y_%m_%d")
+    return date
 
 
-def download_image(tree):
-    imageurl = (base
-                + tree.xpath('/html/body/center[1]/p[2]/a/@href')[0]
-                )
-    imagename = get_folder(now.strftime("%Y_%m_%d_")
-                           + imageurl.split('/')[-1]
-                           )
-    urlretrieve(imageurl, imagename)
+def download_image(tree,url):
+
+    try:
+        imageurl = (base 
+                    + tree.xpath('/html/body/center[1]/p[2]/a/@href')[0]
+                    )
+        imagename = get_folder(get_date(tree)
+                            + ' '
+                            + imageurl.split('/')[-1]
+                            )
+        
+        urlretrieve(imageurl, imagename)
+    except Exception as e:
+        print("error, did not download. Possibly a video on %s" % (url,))
+        pass
+
+def get_last_page(tree):
+    lastpageurl = (base + tree.xpath('/html/body/center[3]/a[1]/@href')[0]
+                   )
+    return lastpageurl
 
 
-download_image(gettree(base + apotd_page))
+if args.days is not None:
+    url = base + apotd_page
+    for i in range(args.days):
+        tree = gettree(url)
+        download_image(tree,url)
+        print("Downloaded image %s of %s" % ((i+1),args.days),)
+        url = (base + tree.xpath('/html/body/center[3]/a[contains(text(),"<")]/@href')[0])
+else:
+    download_image(gettree(base + apotd_page),url)
