@@ -1,7 +1,7 @@
 # Nasa Astronomy picture of the day
 Quick python script that downloads Nasa Astronomy picture of the day. 
 
-##Features
+## Features
 * Download Location Selector
 * Specify amount of historic APOTD's to grab
 
